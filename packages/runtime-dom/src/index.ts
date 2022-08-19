@@ -31,14 +31,17 @@ declare module '@vue/reactivity' {
   }
 }
 
+// 标记：渲染相关的一些配置，更新属性的方法、操作dom的方法
 const rendererOptions = /*#__PURE__*/ extend({ patchProp }, nodeOps)
 
 // lazy create the renderer - this makes core renderer logic tree-shakable
 // in case the user only imports reactivity utilities from Vue.
+// 延时创建渲染器，当用户只依赖响应式包的时候，不会创建渲染器，可以通过tree-shaking移除核心渲染逻辑相关的代码
 let renderer: Renderer<Element | ShadowRoot> | HydrationRenderer
 
 let enabledHydration = false
 
+// 标记
 function ensureRenderer() {
   return (
     renderer ||
@@ -63,7 +66,9 @@ export const hydrate = ((...args) => {
   ensureHydrationRenderer().hydrate(...args)
 }) as RootHydrateFunction
 
+// 标记
 export const createApp = ((...args) => {
+  // 标记：创建app对象
   const app = ensureRenderer().createApp(...args)
 
   if (__DEV__) {
@@ -72,11 +77,14 @@ export const createApp = ((...args) => {
   }
 
   const { mount } = app
+  // 标记：重写mount方法，之前的mount方法是一个跨平台方法，重写的方法里面完善了web平台下的逻辑渲染逻辑
   app.mount = (containerOrSelector: Element | ShadowRoot | string): any => {
+    // 标准化容器
     const container = normalizeContainer(containerOrSelector)
     if (!container) return
 
     const component = app._component
+    // 如果组件对象没有定义render函数和template模板，则取容器的innerHTML作为组件模板内容
     if (!isFunction(component) && !component.render && !component.template) {
       // __UNSAFE__
       // Reason: potential execution of JS expressions in in-DOM template.
@@ -102,8 +110,8 @@ export const createApp = ((...args) => {
     container.innerHTML = ''
     const proxy = mount(container, false, container instanceof SVGElement)
     if (container instanceof Element) {
-      container.removeAttribute('v-cloak')
-      container.setAttribute('data-v-app', '')
+      container.removeAttribute('v-cloak') // 不明白的点：为什么容器要去除v-cloak
+      container.setAttribute('data-v-app', '') // 不明白的点： data-v-app是什么属性，为什么要添加这个属性，为什么平时好像也没见过这个属性
     }
     return proxy
   }

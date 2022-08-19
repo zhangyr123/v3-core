@@ -575,6 +575,7 @@ export const unsetCurrentInstance = () => {
   currentInstance = null
 }
 
+// 标记：/*#__PURE__*/是纯函数的意思，webpack压缩（tree-shaking）时，如果没有调用这个函数会把他删掉，减少代码体积
 const isBuiltInTag = /*#__PURE__*/ makeMap('slot,component')
 
 export function validateComponentName(name: string, config: AppConfig) {

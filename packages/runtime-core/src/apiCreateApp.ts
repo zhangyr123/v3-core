@@ -174,10 +174,12 @@ export type CreateAppFunction<HostElement> = (
 
 let uid = 0
 
+// 标记
 export function createAppAPI<HostElement>(
-  render: RootRenderFunction,
-  hydrate?: RootHydrateFunction
+  render: RootRenderFunction, // render函数，将虚拟dom渲染到真实dom中
+  hydrate?: RootHydrateFunction // 服务器渲染
 ): CreateAppFunction<HostElement> {
+  // 标记：createApp createApp方法接受地两个参数：根组件的对象和prop
   return function createApp(rootComponent, rootProps = null) {
     if (!isFunction(rootComponent)) {
       rootComponent = { ...rootComponent }
@@ -194,14 +196,14 @@ export function createAppAPI<HostElement>(
     let isMounted = false
 
     const app: App = (context.app = {
-      _uid: uid++,
-      _component: rootComponent as ConcreteComponent,
-      _props: rootProps,
-      _container: null,
-      _context: context,
-      _instance: null,
+      _uid: uid++, // 用于标识组件唯一id
+      _component: rootComponent as ConcreteComponent, // 存放当前组件通过编译后的数据
+      _props: rootProps, // 当前组件接收的参数
+      _container: null, // 当前组件对应的要渲染的真实dom位置
+      _context: context, // 当前组件上下文对象，包含config、app等
+      _instance: null, // 当前组件的实例对象
 
-      version,
+      version, // 版本号
 
       get config() {
         return context.config
@@ -251,6 +253,7 @@ export function createAppAPI<HostElement>(
 
       component(name: string, component?: Component): any {
         if (__DEV__) {
+          // 标注：校验组件名是否合格
           validateComponentName(name, context.config)
         }
         if (!component) {
@@ -259,25 +262,30 @@ export function createAppAPI<HostElement>(
         if (__DEV__ && context.components[name]) {
           warn(`Component "${name}" has already been registered in target app.`)
         }
+        // 标注：组件注册
         context.components[name] = component
         return app
       },
 
       directive(name: string, directive?: Directive) {
         if (__DEV__) {
+          // 标注：校验该名字是否是自定义的指令名
           validateDirectiveName(name)
         }
 
         if (!directive) {
           return context.directives[name] as any
         }
+        // 标注：指令已经注册过了
         if (__DEV__ && context.directives[name]) {
           warn(`Directive "${name}" has already been registered in target app.`)
         }
+        // 标注：注册指令
         context.directives[name] = directive
         return app
       },
 
+      // 标准的可跨平台的组件渲染流程
       mount(
         rootContainer: HostElement,
         isHydrate?: boolean,
@@ -292,6 +300,7 @@ export function createAppAPI<HostElement>(
                 ` you need to unmount the previous app by calling \`app.unmount()\` first.`
             )
           }
+          // 创建根组件的vnode
           const vnode = createVNode(
             rootComponent as ConcreteComponent,
             rootProps
@@ -307,9 +316,11 @@ export function createAppAPI<HostElement>(
             }
           }
 
+          // 服务器渲染
           if (isHydrate && hydrate) {
             hydrate(vnode as VNode<Node, Element>, rootContainer as any)
           } else {
+            // 利用渲染器渲染vnode
             render(vnode, rootContainer, isSVG)
           }
           isMounted = true
@@ -322,7 +333,7 @@ export function createAppAPI<HostElement>(
             devtoolsInitApp(app, version)
           }
 
-          return getExposeProxy(vnode.component!) || vnode.component!.proxy
+          return getExposeProxy(vnode.component!) || vnode.component!.proxy // !. tpyescript里面的非空断言符
         } else if (__DEV__) {
           warn(
             `App has already been mounted.\n` +

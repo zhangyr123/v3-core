@@ -289,6 +289,7 @@ export const queuePostRenderEffect = __FEATURE_SUSPENSE__
  * })
  * ```
  */
+// 标记
 export function createRenderer<
   HostNode = RendererNode,
   HostElement = RendererElement
@@ -318,6 +319,7 @@ function baseCreateRenderer(
 ): HydrationRenderer
 
 // implementation
+// 标记
 function baseCreateRenderer(
   options: RendererOptions,
   createHydrationFns?: typeof createHydrationFunctions
@@ -351,10 +353,11 @@ function baseCreateRenderer(
 
   // Note: functions inside this closure should use `const xxx = () => {}`
   // style in order to prevent being inlined by minifiers.
+  // 两个功能：1.根据vnode挂载dom；2.根据新旧vnode更新dom
   const patch: PatchFn = (
-    n1,
-    n2,
-    container,
+    n1, // 旧的vnode，值为null时，表示是一次挂载的过程
+    n2, // 新的vnode，后续根据这个vnode类型执行不同的处理逻辑
+    container, // dom容器，vnode生成dom后，会挂载到container下面
     anchor = null,
     parentComponent = null,
     parentSuspense = null,
@@ -362,11 +365,12 @@ function baseCreateRenderer(
     slotScopeIds = null,
     optimized = __DEV__ && isHmrUpdating ? false : !!n2.dynamicChildren
   ) => {
-    if (n1 === n2) {
+    if (n1 === n2) { // 新节点和旧节点相同，直接结束
       return
     }
 
     // patching & not same type, unmount old tree
+    // 如果存在新旧节点且新旧节点类型不同，则销毁旧节点
     if (n1 && !isSameVNodeType(n1, n2)) {
       anchor = getNextHostNode(n1)
       unmount(n1, parentComponent, parentSuspense, true)
@@ -381,12 +385,15 @@ function baseCreateRenderer(
     const { type, ref, shapeFlag } = n2
     switch (type) {
       case Text:
+        // 处理文本节点
         processText(n1, n2, container, anchor)
         break
       case Comment:
+        // 处理注释节点
         processCommentNode(n1, n2, container, anchor)
         break
       case Static:
+        // 处理静态节点
         if (n1 == null) {
           mountStaticNode(n2, container, anchor, isSVG)
         } else if (__DEV__) {
@@ -394,6 +401,7 @@ function baseCreateRenderer(
         }
         break
       case Fragment:
+        // 处理fragment节点
         processFragment(
           n1,
           n2,
@@ -408,6 +416,7 @@ function baseCreateRenderer(
         break
       default:
         if (shapeFlag & ShapeFlags.ELEMENT) {
+          // 处理普通元素
           processElement(
             n1,
             n2,
@@ -420,6 +429,7 @@ function baseCreateRenderer(
             optimized
           )
         } else if (shapeFlag & ShapeFlags.COMPONENT) {
+          // 处理组件
           processComponent(
             n1,
             n2,
@@ -432,6 +442,7 @@ function baseCreateRenderer(
             optimized
           )
         } else if (shapeFlag & ShapeFlags.TELEPORT) {
+          // 处理TELEPORT
           ;(type as typeof TeleportImpl).process(
             n1 as TeleportVNode,
             n2 as TeleportVNode,
@@ -445,6 +456,7 @@ function baseCreateRenderer(
             internals
           )
         } else if (__FEATURE_SUSPENSE__ && shapeFlag & ShapeFlags.SUSPENSE) {
+          // 处理SUSPENSE，同teleport，都是vue3的内置组件，异步组件，目前不稳定，了解即可
           ;(type as typeof SuspenseImpl).process(
             n1,
             n2,
@@ -1172,6 +1184,7 @@ function baseCreateRenderer(
           optimized
         )
       } else {
+        // 挂载组件
         mountComponent(
           n2,
           container,
@@ -1183,6 +1196,7 @@ function baseCreateRenderer(
         )
       }
     } else {
+      // 更新组件
       updateComponent(n1, n2, optimized)
     }
   }
@@ -1198,8 +1212,10 @@ function baseCreateRenderer(
   ) => {
     // 2.x compat may pre-create the component instance before actually
     // mounting
+    // 预先创建初始实例
     const compatMountInstance =
       __COMPAT__ && initialVNode.isCompatRoot && initialVNode.component
+    // 创建组件实例
     const instance: ComponentInternalInstance =
       compatMountInstance ||
       (initialVNode.component = createComponentInstance(
@@ -1227,6 +1243,7 @@ function baseCreateRenderer(
       if (__DEV__) {
         startMeasure(instance, `init`)
       }
+      // 设置组件实例
       setupComponent(instance)
       if (__DEV__) {
         endMeasure(instance, `init`)
@@ -2323,16 +2340,19 @@ function baseCreateRenderer(
     return hostNextSibling((vnode.anchor || vnode.el)!)
   }
 
+  // 标记：组件渲染的核心逻辑
   const render: RootRenderFunction = (vnode, container, isSVG) => {
     if (vnode == null) {
-      if (container._vnode) {
+      if (container._vnode) { // 之前有dom渲染，则进行unmount操作(组件销毁)
         unmount(container._vnode, null, null, true)
       }
-    } else {
+    } else { // 有虚拟dom，dom diff和渲染（创建或更新组件）
       patch(container._vnode || null, vnode, container, null, null, null, isSVG)
     }
-    flushPreFlushCbs()
-    flushPostFlushCbs()
+    // 回调调度器，使用Promise实现，与vue2的区别是vue2是宏任务和微任务
+    flushPreFlushCbs() // 加入pre队列，组件更新前执行
+    flushPostFlushCbs() // 加入post队列，组件更新后执行
+    // 存储起来，表示已经渲染，方便后续的dom diff操作，
     container._vnode = vnode
   }
 

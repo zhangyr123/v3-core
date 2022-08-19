@@ -133,7 +133,7 @@ export function queuePostFlushCb(cb: SchedulerJobs) {
   queueFlush()
 }
 
-export function flushPreFlushCbs(seen?: CountMap, i = flushIndex) {
+export function flushPreFlushCbs(seen?: CountMap, i = flushIndex) { // 控制API的执行顺序
   if (__DEV__) {
     seen = seen || new Map()
   }

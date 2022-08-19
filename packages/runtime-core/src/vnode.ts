@@ -411,6 +411,7 @@ function createBaseVNode(
   isBlockNode = false,
   needFullChildrenNormalization = false
 ) {
+  // 定义vnode
   const vnode = {
     __v_isVNode: true,
     __v_skip: true,
@@ -440,6 +441,7 @@ function createBaseVNode(
   } as VNode
 
   if (needFullChildrenNormalization) {
+    // 标准化子节点，把不同数据类型的children转成数组或者文本类型
     normalizeChildren(vnode, children)
     // normalize suspense children
     if (__FEATURE_SUSPENSE__ && shapeFlag & ShapeFlags.SUSPENSE) {
@@ -491,6 +493,7 @@ export const createVNode = (
   __DEV__ ? createVNodeWithArgsTransform : _createVNode
 ) as typeof _createVNode
 
+// vnode的实现
 function _createVNode(
   type: VNodeTypes | ClassComponent | typeof NULL_DYNAMIC_COMPONENT,
   props: (Data & VNodeProps) | null = null,
@@ -535,7 +538,7 @@ function _createVNode(
     type = convertLegacyComponent(type, currentRenderingInstance)
   }
 
-  // class & style normalization.
+  // class & style normalization. 处理props相关逻辑，标准化class和style
   if (props) {
     // for reactive or proxy objects, we need to clone it to enable mutation.
     props = guardReactiveProps(props)!
@@ -553,17 +556,17 @@ function _createVNode(
     }
   }
 
-  // encode the vnode type information into a bitmap
+  // encode the vnode type information into a bitmap （vnode类型编码）
   const shapeFlag = isString(type)
-    ? ShapeFlags.ELEMENT
+    ? ShapeFlags.ELEMENT // element
     : __FEATURE_SUSPENSE__ && isSuspense(type)
-    ? ShapeFlags.SUSPENSE
+    ? ShapeFlags.SUSPENSE // suspense
     : isTeleport(type)
-    ? ShapeFlags.TELEPORT
+    ? ShapeFlags.TELEPORT // teleport
     : isObject(type)
-    ? ShapeFlags.STATEFUL_COMPONENT
+    ? ShapeFlags.STATEFUL_COMPONENT // stateful_component
     : isFunction(type)
-    ? ShapeFlags.FUNCTIONAL_COMPONENT
+    ? ShapeFlags.FUNCTIONAL_COMPONENT  // functional_component
     : 0
 
   if (__DEV__ && shapeFlag & ShapeFlags.STATEFUL_COMPONENT && isProxy(type)) {
