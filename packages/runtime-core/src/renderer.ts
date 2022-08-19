@@ -1215,7 +1215,7 @@ function baseCreateRenderer(
     // 预先创建初始实例
     const compatMountInstance =
       __COMPAT__ && initialVNode.isCompatRoot && initialVNode.component
-    // 创建组件实例
+    // 创建组件实例,内部通过对象的方式去创建了当前渲染的组件实例
     const instance: ComponentInternalInstance =
       compatMountInstance ||
       (initialVNode.component = createComponentInstance(
@@ -1243,7 +1243,8 @@ function baseCreateRenderer(
       if (__DEV__) {
         startMeasure(instance, `init`)
       }
-      // 设置组件实例
+      // 设置组件实例，保留了很多组件相关的数据，维护了组件的上下文，
+      // 包括对props、插槽以及其他实例的属性的初始化处理
       setupComponent(instance)
       if (__DEV__) {
         endMeasure(instance, `init`)
@@ -1264,6 +1265,7 @@ function baseCreateRenderer(
       return
     }
 
+    // 设置并运行带副作用的渲染函数
     setupRenderEffect(
       instance,
       initialVNode,
