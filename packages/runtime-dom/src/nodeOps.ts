@@ -8,7 +8,7 @@ const templateContainer = doc && /*#__PURE__*/ doc.createElement('template')
 
 export const nodeOps: Omit<RendererOptions<Node, Element>, 'patchProp'> = {
   insert: (child, parent, anchor) => {
-    parent.insertBefore(child, anchor || null)
+    parent.insertBefore(child, anchor || null) // insert的执行是在处理子节点后，所以挂载的顺序是先子节点，后父节点，最终挂载到最外层的容器中
   },
 
   remove: child => {
