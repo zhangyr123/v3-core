@@ -320,6 +320,7 @@ const isElementRoot = (vnode: VNode) => {
   )
 }
 
+// 主要通过检测和对比组件vnode中的props、children、dirs、transition等属性，来决定子组件是否需要更新
 export function shouldUpdateComponent(
   prevVNode: VNode,
   nextVNode: VNode,
