@@ -151,6 +151,7 @@ const shallowUnwrapHandlers: ProxyHandler<any> = {
   }
 }
 
+// 把数据变成响应式
 export function proxyRefs<T extends object>(
   objectWithRefs: T
 ): ShallowUnwrapRef<T> {

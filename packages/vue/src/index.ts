@@ -84,6 +84,7 @@ function compileToFunction(
   return (compileCache[key] = render)
 }
 
+// 通过外部注册
 registerRuntimeCompiler(compileToFunction)
 
 export { compileToFunction as compile }
