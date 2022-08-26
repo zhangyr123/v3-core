@@ -16,7 +16,7 @@ import { ComputedRefImpl } from './computed'
 // which maintains a Set of subscribers, but we simply store them as
 // raw Sets to reduce memory overhead.
 type KeyToDepMap = Map<any, Dep>
-const targetMap = new WeakMap<any, KeyToDepMap>()
+const targetMap = new WeakMap<any, KeyToDepMap>() // 原始数据对象map
 
 // The number of effects currently being tracked recursively.
 let effectTrackDepth = 0
@@ -50,6 +50,7 @@ export let activeEffect: ReactiveEffect | undefined
 export const ITERATE_KEY = Symbol(__DEV__ ? 'iterate' : '')
 export const MAP_KEY_ITERATE_KEY = Symbol(__DEV__ ? 'Map key iterate' : '')
 
+// 将全局的activeEffect指向它，然后执行被包装的原始函数fn
 export class ReactiveEffect<T = any> {
   active = true
   deps: Dep[] = []
@@ -97,14 +98,15 @@ export class ReactiveEffect<T = any> {
     }
     try {
       this.parent = activeEffect
-      activeEffect = this
-      shouldTrack = true
+      activeEffect = this // 当前激活的effect
+      shouldTrack = true // 是否应该收集依赖
 
       trackOpBit = 1 << ++effectTrackDepth
 
       if (effectTrackDepth <= maxMarkerBits) {
         initDepMarkers(this)
       } else {
+        // 清空activeEffect对应依赖
         cleanupEffect(this)
       }
       return this.fn()
@@ -210,14 +212,24 @@ export function resetTracking() {
   shouldTrack = last === undefined ? true : last
 }
 
+// 是否应该收集依赖
+// let shouldTrack = true
+// 当前激活的 effect
+// let activeEffect
+// 原始数据对象 map
+// const targetMap = new WeakMap()
+// 依赖收集实际上就是数据变化后执行的副作用函数
+// 每次track，就是把当前激活的副作用函数activeEffect作为依赖，然后收集到target相关的depsMap对应key下的依赖集合dep中
 export function track(target: object, type: TrackOpTypes, key: unknown) {
   if (shouldTrack && activeEffect) {
     let depsMap = targetMap.get(target)
     if (!depsMap) {
+      // 每个depsMap对应一个depsMap
       targetMap.set(target, (depsMap = new Map()))
     }
     let dep = depsMap.get(key)
     if (!dep) {
+      // 每个key对应一个dep集合
       depsMap.set(key, (dep = createDep()))
     }
 
@@ -256,6 +268,11 @@ export function trackEffects(
   }
 }
 
+// 派发函数
+// 通过targetMap拿到target对应的依赖集合depsMap
+// 创建运行的effects集合
+// 根据key从depsMap中找到对应的effects集合
+// 遍历effects执行相关的副作用函数
 export function trigger(
   target: object,
   type: TriggerOpTypes,
@@ -264,9 +281,11 @@ export function trigger(
   oldValue?: unknown,
   oldTarget?: Map<unknown, unknown> | Set<unknown>
 ) {
+  // 通过targetMap拿到target对应的依赖集合
   const depsMap = targetMap.get(target)
   if (!depsMap) {
     // never been tracked
+    // 没有依赖，直接返回
     return
   }
 
@@ -288,6 +307,7 @@ export function trigger(
     }
 
     // also run for iteration key on ADD | DELETE | Map.SET
+    // 根据操作添加对应的effects
     switch (type) {
       case TriggerOpTypes.ADD:
         if (!isArray(target)) {
@@ -336,6 +356,7 @@ export function trigger(
       }
     }
     if (__DEV__) {
+      // createDep创建effects
       triggerEffects(createDep(effects), eventInfo)
     } else {
       triggerEffects(createDep(effects))
@@ -349,6 +370,7 @@ export function triggerEffects(
 ) {
   // spread into array for stabilization
   const effects = isArray(dep) ? dep : [...dep]
+  // 遍历effects执行相关的副作用函数
   for (const effect of effects) {
     if (effect.computed) {
       triggerEffect(effect, debuggerEventExtraInfo)

@@ -38,8 +38,9 @@ type RefBase<T> = {
 
 export function trackRefValue(ref: RefBase<any>) {
   if (shouldTrack && activeEffect) {
-    ref = toRaw(ref)
+    ref = toRaw(ref) // 转成普通数据
     if (__DEV__) {
+      // 依赖收集，key为固定的value
       trackEffects(ref.dep || (ref.dep = createDep()), {
         target: ref,
         type: TrackOpTypes.GET,
@@ -96,6 +97,7 @@ export function shallowRef(value?: unknown) {
 
 function createRef(rawValue: unknown, shallow: boolean) {
   if (isRef(rawValue)) {
+    // 如果传入的是一个ref，返回自身即可，处理嵌套ref的情况
     return rawValue
   }
   return new RefImpl(rawValue, shallow)
@@ -110,10 +112,11 @@ class RefImpl<T> {
 
   constructor(value: T, public readonly __v_isShallow: boolean) {
     this._rawValue = __v_isShallow ? value : toRaw(value)
-    this._value = __v_isShallow ? value : toReactive(value)
+    this._value = __v_isShallow ? value : toReactive(value) // 是数组或对象类型，转换成一个reactive对象
   }
 
   get value() {
+    // 依赖收集
     trackRefValue(this)
     return this._value
   }
@@ -122,9 +125,11 @@ class RefImpl<T> {
     const useDirectValue =
       this.__v_isShallow || isShallow(newVal) || isReadonly(newVal)
     newVal = useDirectValue ? newVal : toRaw(newVal)
+    // 判断有变化后更新值
     if (hasChanged(newVal, this._rawValue)) {
       this._rawValue = newVal
       this._value = useDirectValue ? newVal : toReactive(newVal)
+      // 派发通知
       triggerRefValue(this, newVal)
     }
   }

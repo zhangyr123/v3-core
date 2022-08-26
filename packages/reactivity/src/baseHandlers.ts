@@ -58,14 +58,18 @@ function createArrayInstrumentations() {
   // values
   ;(['includes', 'indexOf', 'lastIndexOf'] as const).forEach(key => {
     instrumentations[key] = function (this: unknown[], ...args: unknown[]) {
+      // toRaw可以把响应式对象转成原始数据
       const arr = toRaw(this) as any
       for (let i = 0, l = this.length; i < l; i++) {
+        // 依赖收集
         track(arr, TrackOpTypes.GET, i + '')
       }
       // we run the method using the original args first (which may be reactive)
+      // 先尝试用参数本身，可能是响应式数据
       const res = arr[key](...args)
       if (res === -1 || res === false) {
         // if that didn't work, run it again using raw values.
+        // 如果失败，再尝试把参数转成原始数据
         return arr[key](...args.map(toRaw))
       } else {
         return res
@@ -88,8 +92,10 @@ function createArrayInstrumentations() {
 function createGetter(isReadonly = false, shallow = false) {
   return function get(target: Target, key: string | symbol, receiver: object) {
     if (key === ReactiveFlags.IS_REACTIVE) {
+      // 代理observed.__v_isReactive
       return !isReadonly
     } else if (key === ReactiveFlags.IS_READONLY) {
+      // 代理observed.__v_isReadonly
       return isReadonly
     } else if (key === ReactiveFlags.IS_SHALLOW) {
       return shallow
@@ -105,21 +111,26 @@ function createGetter(isReadonly = false, shallow = false) {
           : reactiveMap
         ).get(target)
     ) {
+      // 代理observed.__v_raw
       return target
     }
 
     const targetIsArray = isArray(target)
 
+    // arrayInstrumentations包含对数组一些方法修改的函数
     if (!isReadonly && targetIsArray && hasOwn(arrayInstrumentations, key)) {
       return Reflect.get(arrayInstrumentations, key, receiver)
     }
 
+    // 求值
     const res = Reflect.get(target, key, receiver)
 
+    // 内置Symbol key不需要依赖收集
     if (isSymbol(key) ? builtInSymbols.has(key) : isNonTrackableKeys(key)) {
       return res
     }
 
+    // 依赖收集，isReadOnly为true，不需要依赖收集
     if (!isReadonly) {
       track(target, TrackOpTypes.GET, key)
     }
@@ -137,6 +148,7 @@ function createGetter(isReadonly = false, shallow = false) {
       // Convert returned value into a proxy as well. we do the isObject check
       // here to avoid invalid value warning. Also need to lazy access readonly
       // and reactive here to avoid circular dependency.
+      // 如果res是个对象或者数组类型，则递归执行reactive函数把res变成响应式
       return isReadonly ? readonly(res) : reactive(res)
     }
 
@@ -144,6 +156,8 @@ function createGetter(isReadonly = false, shallow = false) {
   }
 }
 
+// 设置派发通知：set函数
+// 通过reflect.set求值，再通过trigger函数派发通知（通过key是否在target上确定修改还是添加）
 const set = /*#__PURE__*/ createSetter()
 const shallowSet = /*#__PURE__*/ createSetter(true)
 
@@ -160,6 +174,7 @@ function createSetter(shallow = false) {
     }
     if (!shallow) {
       if (!isShallow(value) && !isReadonly(value)) {
+        // 转成原始数据
         oldValue = toRaw(oldValue)
         value = toRaw(value)
       }
@@ -177,6 +192,7 @@ function createSetter(shallow = false) {
         : hasOwn(target, key)
     const result = Reflect.set(target, key, value, receiver)
     // don't trigger if target is something up in the prototype chain of original
+    // 如果目标原型链也是一个proxy,通过Reflect.set修改原型链上的属性会再次触发setter，这种情况下没必要触发两次trigger
     if (target === toRaw(receiver)) {
       if (!hadKey) {
         trigger(target, TriggerOpTypes.ADD, key, value)
@@ -211,6 +227,13 @@ function ownKeys(target: object): (string | symbol)[] {
   return Reflect.ownKeys(target)
 }
 
+// 劫持了对observed对象的一些操作，比如
+// 1.访问对象会触发get函数
+// 2.设置对象属性会触发set函数
+// 3.删除对象属性会触发deleteProperty
+// 4.in操作符会触发has函数
+// 5.通过object.getOwnPropertyNames访问对象属性名会触发ownkeys函数
+// 无论命中哪个处理器函数，它都会做依赖收集和派发通知中的一个
 export const mutableHandlers: ProxyHandler<object> = {
   get,
   set,
@@ -219,6 +242,7 @@ export const mutableHandlers: ProxyHandler<object> = {
   ownKeys
 }
 
+// readonly数据不允许修改和删除
 export const readonlyHandlers: ProxyHandler<object> = {
   get: readonlyGet,
   set(target, key) {

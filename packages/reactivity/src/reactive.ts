@@ -89,6 +89,7 @@ export type UnwrapNestedRefs<T> = T extends Ref ? T : UnwrapRefSimple<T>
 export function reactive<T extends object>(target: T): UnwrapNestedRefs<T>
 export function reactive(target: object) {
   // if trying to observe a readonly proxy, return the readonly version.
+  // 如果尝试把一个readonly proxy变成响应式 ，直接返回这个readonly proxy
   if (isReadonly(target)) {
     return target
   }
@@ -178,6 +179,8 @@ export function shallowReadonly<T extends object>(target: T): Readonly<T> {
   )
 }
 
+// object.defineProperty 是在初始化阶段，即定义劫持对象的时候就已经递归执行了，
+// 而proxy是在对象属性被访问的时候才递归执行下一步reactive，这其实是一种延时定义对象响应式的实现，在性能上会有较大的提升。
 function createReactiveObject(
   target: Target,
   isReadonly: boolean,
@@ -186,6 +189,7 @@ function createReactiveObject(
   proxyMap: WeakMap<Target, any>
 ) {
   if (!isObject(target)) {
+    // 目标必须是对象或者数组
     if (__DEV__) {
       console.warn(`value cannot be made reactive: ${String(target)}`)
     }
@@ -193,6 +197,7 @@ function createReactiveObject(
   }
   // target is already a Proxy, return it.
   // exception: calling readonly() on a reactive object
+  // target已经是个proxy对象，并且不是readonly响应式对象，直接返回
   if (
     target[ReactiveFlags.RAW] &&
     !(isReadonly && target[ReactiveFlags.IS_REACTIVE])
@@ -200,19 +205,23 @@ function createReactiveObject(
     return target
   }
   // target already has corresponding Proxy
+  // target已经有对应的proxy了
   const existingProxy = proxyMap.get(target)
   if (existingProxy) {
     return existingProxy
   }
   // only specific value types can be observed.
+  // 只有具体类型的值可以继续（白名单？）
   const targetType = getTargetType(target)
   if (targetType === TargetType.INVALID) {
     return target
   }
+  // 利用proxy创建响应式
   const proxy = new Proxy(
     target,
     targetType === TargetType.COLLECTION ? collectionHandlers : baseHandlers
   )
+  // 给原始数据打个标识，说明它已经变成响应式，并且有对应的proxy了
   proxyMap.set(target, proxy)
   return proxy
 }
