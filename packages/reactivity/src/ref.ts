@@ -55,6 +55,7 @@ export function trackRefValue(ref: RefBase<any>) {
 export function triggerRefValue(ref: RefBase<any>, newVal?: any) {
   ref = toRaw(ref)
   if (ref.dep) {
+    // 派发通知，通知运行访问该计算属性的activeEffect
     if (__DEV__) {
       triggerEffects(ref.dep, {
         target: ref,
